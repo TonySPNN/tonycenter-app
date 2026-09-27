@@ -1,0 +1,107 @@
+{
+  "bentoCards": [
+    {
+      "id": "bento-1",
+      "title": "Community Voice",
+      "subtitle": "Built by the culture, for the culture.",
+      "description": "Join a global movement of creators using TonyCenter to synthesize custom brand assets, 3D products, and street-style merchandise directly from prompts.",
+      "imageUrl": "/3d-web/S__105291779_0.jpg",
+      "targetUrl": "https://tonycenter.com/apps/community-voice",
+      "badge": "AI MEGAPHONE",
+      "badgeColor": "#2563eb",
+      "gridLayout": "tall-left"
+    },
+    {
+      "id": "bento-2",
+      "title": "Fuel Your Hustle",
+      "subtitle": "Stay energized with custom merch drops.",
+      "description": "Our AI generation workflows allow non-stop iterations for physical product prototyping, lifestyle accessories, and automated design drops.",
+      "imageUrl": "/3d-web/S__105291780_0.jpg",
+      "targetUrl": "https://tonycenter.com/apps/fuel-hustle",
+      "badge": "3D PROTOTYPING",
+      "badgeColor": "#d97706",
+      "gridLayout": "wide-top-right"
+    },
+    {
+      "id": "bento-3",
+      "title": "Sound of the Streets",
+      "subtitle": "Inspired by beats, rhythms, and audio.",
+      "description": "Generate ultra-detailed audio gear, spatial sound visuals, and wearable tech prototypes with instant photorealistic lighting.",
+      "imageUrl": "/3d-web/S__105291781_0.jpg",
+      "targetUrl": "https://tonycenter.com/apps/sound-streets",
+      "badge": "AUDIO TECH",
+      "badgeColor": "#059669",
+      "gridLayout": "mid-1"
+    },
+    {
+      "id": "bento-4",
+      "title": "Work Meets Street",
+      "subtitle": "Blend hustle with smart streetwear style.",
+      "description": "Seamlessly bridge corporate utility and streetwear fashion. Generate custom luxury accessories, carry cases, and hardware.",
+      "imageUrl": "/3d-web/S__105291782_0.jpg",
+      "targetUrl": "https://tonycenter.com/apps/work-street",
+      "badge": "GEAR DESIGN",
+      "badgeColor": "#7c3aed",
+      "gridLayout": "mid-2"
+    },
+    {
+      "id": "bento-5",
+      "title": "Step Up Your Game",
+      "subtitle": "Walk the talk with footwear designed for impact.",
+      "description": "Transform footwear design concepts into manufacturing-ready 8K 3D renders. Experiment with colorways, materials, and sole ergonomics in seconds.",
+      "imageUrl": "/3d-web/S__105291783_0.jpg",
+      "targetUrl": "https://tonycenter.com/apps/step-up",
+      "badge": "FOOTWEAR AI",
+      "badgeColor": "#e11d48",
+      "gridLayout": "wide-bottom-left"
+    },
+    {
+      "id": "bento-6",
+      "title": "Ready for Anywhere",
+      "subtitle": "Versatile essentials built for everyday grind.",
+      "description": "Equip your digital universe with high-fidelity backpacks, EDC items, and tactical accessories ready for production export.",
+      "imageUrl": "/3d-web/S__105291785_0.jpg",
+      "targetUrl": "https://tonycenter.com/apps/ready-anywhere",
+      "badge": "PACK & ACCS",
+      "badgeColor": "#0891b2",
+      "gridLayout": "bottom-right"
+    }
+  ],
+  "categories": [
+    {
+      "id": "cat-1",
+      "name": "AI MEGAPHONE",
+      "color": "#2563eb"
+    },
+    {
+      "id": "cat-2",
+      "name": "Automate for work",
+      "color": "#d97706"
+    },
+    {
+      "id": "cat-3",
+      "name": "AUDIO TECH",
+      "color": "#059669"
+    },
+    {
+      "id": "cat-4",
+      "name": "GEAR DESIGN",
+      "color": "#7c3aed"
+    },
+    {
+      "id": "cat-5",
+      "name": "FOOTWEAR AI",
+      "color": "#e11d48"
+    },
+    {
+      "id": "cat-6",
+      "name": "PACK & ACCS",
+      "color": "#0891b2"
+    },
+    {
+      "id": "cat-7",
+      "name": "Automate for work",
+      "color": "#4f46e5"
+    }
+  ]
+}
