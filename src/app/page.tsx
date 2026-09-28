@@ -9,6 +9,8 @@ import AdminSettingsModal from "@/components/AdminSettingsModal";
 import {
   BentoCard,
   CategoryBadge,
+  DEFAULT_HERO_VIDEO,
+  HeroVideoSettings,
   INITIAL_BENTO_CARDS,
   INITIAL_CATEGORIES,
 } from "@/lib/types";
@@ -22,19 +24,22 @@ import {
 export default function Home() {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  // Unified State management for Bento Cards, Categories, and Modals
+  // Unified State management for Bento Cards, Categories, Hero Video, and Modals
   const [bentoCards, setBentoCards] = useState<BentoCard[]>(INITIAL_BENTO_CARDS);
   const [categories, setCategories] = useState<CategoryBadge[]>(INITIAL_CATEGORIES);
+  const [heroVideo, setHeroVideo] = useState<HeroVideoSettings>(DEFAULT_HERO_VIDEO);
   const [selectedBentoCard, setSelectedBentoCard] = useState<BentoCard | null>(null);
   const [isAdminOpen, setIsAdminOpen] = useState<boolean>(false);
 
-  // Load persisted settings from IndexedDB/localStorage on mount
+  // Load persisted settings from IndexedDB/localStorage/server disk on mount
   useEffect(() => {
     async function loadSettings() {
       const savedBento = await getStoredItem("tonycenter_bento_cards", INITIAL_BENTO_CARDS);
       setBentoCards(savedBento);
       const savedCats = await getStoredItem("tonycenter_categories", INITIAL_CATEGORIES);
       setCategories(savedCats);
+      const savedVideo = await getStoredItem("tonycenter_hero_video", DEFAULT_HERO_VIDEO);
+      setHeroVideo(savedVideo);
     }
     loadSettings();
   }, []);
@@ -51,13 +56,21 @@ export default function Home() {
     await setStoredItem("tonycenter_categories", updated);
   };
 
+  // Save Hero Video Settings
+  const handleSaveHeroVideo = async (updated: HeroVideoSettings) => {
+    setHeroVideo(updated);
+    await setStoredItem("tonycenter_hero_video", updated);
+  };
+
   // Reset all settings to defaults & sync to server disk
   const handleResetDefaults = async () => {
     setBentoCards(INITIAL_BENTO_CARDS);
     setCategories(INITIAL_CATEGORIES);
-    await saveAllSettingsToDisk(INITIAL_BENTO_CARDS, INITIAL_CATEGORIES);
+    setHeroVideo(DEFAULT_HERO_VIDEO);
+    await saveAllSettingsToDisk(INITIAL_BENTO_CARDS, INITIAL_CATEGORIES, DEFAULT_HERO_VIDEO);
     await removeStoredItem("tonycenter_bento_cards");
     await removeStoredItem("tonycenter_categories");
+    await removeStoredItem("tonycenter_hero_video");
   };
 
   return (
@@ -71,8 +84,12 @@ export default function Home() {
       >
         {/* Fullscreen Sticky Container for Canvas & Hero Overlay */}
         <div className="sticky top-0 h-screen w-full flex flex-col justify-between p-4 sm:p-8 md:p-12 overflow-hidden">
-          {/* Scroll-linked Canvas Video Sequence Background */}
-          <HeroScrollCanvas totalFrames={192} containerRef={scrollContainerRef} />
+          {/* Scroll-linked Canvas / Custom Video Background */}
+          <HeroScrollCanvas
+            totalFrames={192}
+            containerRef={scrollContainerRef}
+            heroVideo={heroVideo}
+          />
 
           {/* Top Header & Navigation Bar */}
           <header className="relative z-20 w-full flex items-center justify-between gap-4">
@@ -171,8 +188,10 @@ export default function Home() {
         onClose={() => setIsAdminOpen(false)}
         bentoCards={bentoCards}
         categories={categories}
+        heroVideo={heroVideo}
         onSaveBentoCards={handleSaveBentoCards}
         onSaveCategories={handleSaveCategories}
+        onSaveHeroVideo={handleSaveHeroVideo}
         onResetDefaults={handleResetDefaults}
       />
 

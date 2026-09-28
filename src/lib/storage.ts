@@ -39,6 +39,9 @@ export async function getStoredItem<T>(key: string, fallbackValue: T): Promise<T
       if (key === "tonycenter_categories" && serverData.categories?.length > 0) {
         return serverData.categories as T;
       }
+      if (key === "tonycenter_hero_video" && serverData.heroVideo) {
+        return serverData.heroVideo as T;
+      }
     }
   } catch (err) {
     console.warn("Server disk fetch warning:", err);
@@ -92,15 +95,22 @@ export async function setStoredItem<T>(key: string, value: T): Promise<void> {
 }
 
 // Save & Sync all settings permanently to physical file on local server disk!
-export async function saveAllSettingsToDisk(bentoCards: any[], categories: any[]): Promise<boolean> {
+export async function saveAllSettingsToDisk(
+  bentoCards: any[],
+  categories: any[],
+  heroVideo?: any
+): Promise<boolean> {
   try {
     await setStoredItem("tonycenter_bento_cards", bentoCards);
     await setStoredItem("tonycenter_categories", categories);
+    if (heroVideo) {
+      await setStoredItem("tonycenter_hero_video", heroVideo);
+    }
 
     const res = await fetch("/api/settings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ bentoCards, categories }),
+      body: JSON.stringify({ bentoCards, categories, heroVideo }),
     });
 
     return res.ok;

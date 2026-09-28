@@ -4,6 +4,22 @@ export interface CategoryBadge {
   color: string; // e.g. "#2563eb" (Hex color)
 }
 
+export interface HeroVideoSettings {
+  videoUrl?: string; // Custom uploaded video path (e.g. "/uploads/hero-video.mp4")
+  objectFit?: "cover" | "contain" | "fill";
+  scale?: number; // Zoom level e.g. 1.0 to 2.0
+  positionX?: number; // Horizontal percentage e.g. 50
+  positionY?: number; // Vertical percentage e.g. 50
+}
+
+export const DEFAULT_HERO_VIDEO: HeroVideoSettings = {
+  videoUrl: "",
+  objectFit: "cover",
+  scale: 1.0,
+  positionX: 50,
+  positionY: 50,
+};
+
 export interface LogoItem {
   id: string;
   name: string;

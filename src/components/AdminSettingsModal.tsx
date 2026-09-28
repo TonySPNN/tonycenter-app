@@ -1,7 +1,13 @@
 "use client";
 
-import { useState } from "react";
-import { BentoCard, CategoryBadge, INITIAL_CATEGORIES } from "@/lib/types";
+import { useRef, useState } from "react";
+import {
+  BentoCard,
+  CategoryBadge,
+  DEFAULT_HERO_VIDEO,
+  HeroVideoSettings,
+  INITIAL_CATEGORIES,
+} from "@/lib/types";
 import { compressImageFile, saveAllSettingsToDisk } from "@/lib/storage";
 import ImageCropModal from "@/components/ImageCropModal";
 
@@ -10,8 +16,10 @@ interface AdminSettingsModalProps {
   onClose: () => void;
   bentoCards: BentoCard[];
   categories: CategoryBadge[];
+  heroVideo?: HeroVideoSettings;
   onSaveBentoCards: (updated: BentoCard[]) => void;
   onSaveCategories: (updated: CategoryBadge[]) => void;
+  onSaveHeroVideo?: (updated: HeroVideoSettings) => void;
   onResetDefaults: () => void;
 }
 
@@ -20,18 +28,29 @@ export default function AdminSettingsModal({
   onClose,
   bentoCards,
   categories,
+  heroVideo,
   onSaveBentoCards,
   onSaveCategories,
+  onSaveHeroVideo,
   onResetDefaults,
 }: AdminSettingsModalProps) {
-  const [activeTab, setActiveTab] = useState<"bento" | "categories">("bento");
+  const [activeTab, setActiveTab] = useState<"bento" | "categories" | "video">("bento");
   const [localBento, setLocalBento] = useState<BentoCard[]>(bentoCards);
   const [localCategories, setLocalCategories] = useState<CategoryBadge[]>(
     categories && categories.length > 0 ? categories : INITIAL_CATEGORIES
   );
+  const [localHeroVideo, setLocalHeroVideo] = useState<HeroVideoSettings>(
+    heroVideo || DEFAULT_HERO_VIDEO
+  );
+
   const [isProcessingFile, setIsProcessingFile] = useState(false);
+  const [isUploadingVideo, setIsUploadingVideo] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Video Preview & Scrubber State
+  const [previewScrubber, setPreviewScrubber] = useState<number>(0);
+  const videoPreviewRef = useRef<HTMLVideoElement | null>(null);
 
   // Image Cropper State
   const [croppingImageSrc, setCroppingImageSrc] = useState<string | null>(null);
@@ -53,7 +72,7 @@ export default function AdminSettingsModal({
     { name: "Magenta", hex: "#c026d3" },
   ];
 
-  // Handle local image file upload with automatic compression & auto-open cropper
+  // Handle image crop trigger
   const handleFileUpload = async (
     e: React.ChangeEvent<HTMLInputElement>,
     cardIdx: number
@@ -73,6 +92,41 @@ export default function AdminSettingsModal({
     }
   };
 
+  // Handle video upload to /api/upload-video
+  const handleVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingVideo(true);
+    try {
+      const formData = new FormData();
+      formData.append("video", file);
+
+      const res = await fetch("/api/upload-video", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (res.ok && data.videoUrl) {
+        const updated: HeroVideoSettings = {
+          ...localHeroVideo,
+          videoUrl: data.videoUrl,
+        };
+        setLocalHeroVideo(updated);
+        setToastMessage("🎥 อัปโหลดวิดีโอ Hero สำเร็จแล้ว!");
+        setTimeout(() => setToastMessage(null), 3000);
+      } else {
+        alert(data.error || "เกิดข้อผิดพลาดในการอัปโหลดวิดีโอ");
+      }
+    } catch (err) {
+      console.error("Video upload error:", err);
+      alert("ไม่สามารถอัปโหลดวิดีโอได้");
+    } finally {
+      setIsUploadingVideo(false);
+    }
+  };
+
   const handleConfirmCrop = (croppedBase64: string) => {
     if (croppingCardIndex !== null) {
       const updated = [...localBento];
@@ -85,9 +139,15 @@ export default function AdminSettingsModal({
     setIsSaving(true);
     setToastMessage(null);
     try {
-      const ok = await saveAllSettingsToDisk(localBento, localCategories);
+      const ok = await saveAllSettingsToDisk(
+        localBento,
+        localCategories,
+        localHeroVideo
+      );
       onSaveBentoCards(localBento);
       onSaveCategories(localCategories);
+      if (onSaveHeroVideo) onSaveHeroVideo(localHeroVideo);
+
       if (ok) {
         setToastMessage("💾 บันทึกและซิงค์ข้อมูลลงไฟล์เซิร์ฟเวอร์ในเครื่องเรียบร้อย!");
         setTimeout(() => {
@@ -101,6 +161,7 @@ export default function AdminSettingsModal({
       console.error("Save error:", err);
       onSaveBentoCards(localBento);
       onSaveCategories(localCategories);
+      if (onSaveHeroVideo) onSaveHeroVideo(localHeroVideo);
       onClose();
     } finally {
       setIsSaving(false);
@@ -123,7 +184,7 @@ export default function AdminSettingsModal({
                   ระบบตั้งค่าหลังบ้าน (Admin Settings)
                 </h3>
                 <p className="text-xs text-slate-400">
-                  จัดการรูปภาพ, ปรับกรอบรูป, กำหนดป้ายหมวดหมู่ & สีโฮเวอร์ข้อความ
+                  จัดการวิดีโอหน้าปก, Bento Grid cards, ปรับกรอบรูป & ป้ายหมวดหมู่
                 </p>
               </div>
             </div>
@@ -136,34 +197,44 @@ export default function AdminSettingsModal({
           </div>
 
           {/* Tab Selection */}
-          <div className="flex border-b border-slate-200 bg-slate-100 px-6 pt-3 gap-2 shrink-0">
+          <div className="flex border-b border-slate-200 bg-slate-100 px-6 pt-3 gap-2 shrink-0 overflow-x-auto">
             <button
               onClick={() => setActiveTab("bento")}
-              className={`px-5 py-2.5 rounded-t-2xl font-semibold text-xs sm:text-sm transition-all ${
+              className={`px-5 py-2.5 rounded-t-2xl font-semibold text-xs sm:text-sm transition-all shrink-0 ${
                 activeTab === "bento"
                   ? "bg-white text-blue-600 border-t-2 border-blue-600 shadow-sm"
                   : "text-slate-600 hover:text-slate-900"
               }`}
             >
-              🍱 Bento Grid Cards ({localBento.length} แอป)
+              🍱 Bento Grid ({localBento.length} แอป)
+            </button>
+            <button
+              onClick={() => setActiveTab("video")}
+              className={`px-5 py-2.5 rounded-t-2xl font-semibold text-xs sm:text-sm transition-all shrink-0 ${
+                activeTab === "video"
+                  ? "bg-white text-blue-600 border-t-2 border-blue-600 shadow-sm"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              🎥 Hero Scroll Video (วิดีโอหน้าปก)
             </button>
             <button
               onClick={() => setActiveTab("categories")}
-              className={`px-5 py-2.5 rounded-t-2xl font-semibold text-xs sm:text-sm transition-all ${
+              className={`px-5 py-2.5 rounded-t-2xl font-semibold text-xs sm:text-sm transition-all shrink-0 ${
                 activeTab === "categories"
                   ? "bg-white text-blue-600 border-t-2 border-blue-600 shadow-sm"
                   : "text-slate-600 hover:text-slate-900"
               }`}
             >
-              🏷️ ตั้งค่าป้ายหมวดหมู่ & สีข้อความ ({localCategories.length} หมวดหมู่)
+              🏷️ ป้ายหมวดหมู่ & สี ({localCategories.length})
             </button>
           </div>
 
           {/* Content Body */}
           <div className="p-6 overflow-y-auto flex-1 space-y-6">
+            {/* TAB 1: Bento Cards */}
             {activeTab === "bento" && (
               <div className="space-y-6">
-                {/* Add New Bento Card Button */}
                 <div className="flex justify-between items-center bg-blue-50 p-4 rounded-2xl border border-blue-200">
                   <span className="text-xs font-bold text-blue-900">
                     รายการแอปของคุณ (ปัจจุบันมี {localBento.length} แอป - เพิ่มได้ไม่จำกัด)
@@ -220,7 +291,6 @@ export default function AdminSettingsModal({
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      {/* Title */}
                       <div>
                         <label className="block text-xs font-bold text-slate-700 mb-1">
                           ชื่อแอป / เว็บไซต์ (Title)
@@ -237,7 +307,6 @@ export default function AdminSettingsModal({
                         />
                       </div>
 
-                      {/* Subtitle */}
                       <div>
                         <label className="block text-xs font-bold text-slate-700 mb-1">
                           คำโปรยสั้น (Subtitle)
@@ -254,7 +323,6 @@ export default function AdminSettingsModal({
                         />
                       </div>
 
-                      {/* Dropdown Select for Category Badge & Hover Color */}
                       <div>
                         <label className="block text-xs font-bold text-slate-700 mb-1">
                           เลือกป้ายหมวดหมู่ (Badge & Hover Color)
@@ -282,13 +350,9 @@ export default function AdminSettingsModal({
                             </option>
                           ))}
                         </select>
-                        <p className="text-[10px] text-slate-400 mt-1">
-                          * สีข้อความเวลาเลื่อนเมาส์โดนจะปรับตามป้ายกำกับนี้โดยอัตโนมัติ
-                        </p>
                       </div>
                     </div>
 
-                    {/* Description */}
                     <div>
                       <label className="block text-xs font-bold text-slate-700 mb-1">
                         คำอธิบายรายละเอียด (Description)
@@ -306,7 +370,6 @@ export default function AdminSettingsModal({
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {/* Image URL & File Upload & Crop Trigger */}
                       <div>
                         <div className="flex items-center justify-between mb-1">
                           <label className="block text-xs font-bold text-slate-700">
@@ -351,7 +414,6 @@ export default function AdminSettingsModal({
                         </div>
                       </div>
 
-                      {/* Target Web App Link */}
                       <div>
                         <label className="block text-xs font-bold text-slate-700 mb-1">
                           ลิงค์พาไปเว็บแอปเมื่อกด (Target App URL)
@@ -374,12 +436,197 @@ export default function AdminSettingsModal({
               </div>
             )}
 
-            {/* TAB: Categories & Colors Manager */}
+            {/* TAB 2: Hero Scroll Video Manager */}
+            {activeTab === "video" && (
+              <div className="space-y-6">
+                <div className="bg-slate-900 text-white p-5 rounded-2xl border border-slate-800 shadow-md">
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">🎥</span>
+                    <div>
+                      <h4 className="font-bold text-sm text-white">
+                        อัปโหลดวิดีโอ Hero Scroll & ปรับแต่งกรอบ (Aspect Ratio & Framing)
+                      </h4>
+                      <p className="text-xs text-slate-300">
+                        เมื่ออัปโหลดวิดีโอ ระบบจะแปลงการเลื่อนหน้าเว็บ (Scroll 0% → 100%) ให้เลื่อนเฟรมวิดีโอตั้งแต่เฟรมแรกจนถึงเฟรมสุดท้ายโดยอัตโนมัติ!
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-5 bg-slate-50 border border-slate-200 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-800 mb-1">
+                      เลือกไฟล์วิดีโอใหม่ (.mp4, .webm, .mov)
+                    </label>
+                    <p className="text-[11px] text-slate-500">
+                      วิดีโอจะถูกเซฟเก็บไว้บนไฟล์เซิร์ฟเวอร์ดิสก์โดยตรง
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <label className="cursor-pointer px-5 py-2.5 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all shadow-md flex items-center gap-2">
+                      <span>📤 อัปโหลดวิดีโอใหม่</span>
+                      <input
+                        type="file"
+                        accept="video/*"
+                        onChange={handleVideoUpload}
+                        className="hidden"
+                      />
+                    </label>
+                    {isUploadingVideo && (
+                      <span className="text-xs text-blue-600 font-bold animate-pulse">
+                        ⏳ กำลังอัปโหลด...
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {localHeroVideo.videoUrl ? (
+                  <div className="p-5 bg-slate-50 border border-slate-200 rounded-2xl space-y-5">
+                    <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+                      <span className="text-xs font-bold text-slate-800">
+                        🎥 ตัวอย่างการแสดงผล & ปุ่มลองเลื่อนดูเฟรมวิดีโอ
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setLocalHeroVideo({
+                            videoUrl: "",
+                            objectFit: "cover",
+                            scale: 1.0,
+                            positionX: 50,
+                            positionY: 50,
+                          });
+                        }}
+                        className="text-xs font-bold text-red-600 hover:underline"
+                      >
+                        🗑️ ยกเลิกวิดีโอนี้ (กลับไปใช้ฉาก 3D ดั้งเดิม)
+                      </button>
+                    </div>
+
+                    <div className="relative w-full h-64 bg-black rounded-2xl overflow-hidden shadow-inner border border-slate-800 flex items-center justify-center">
+                      <video
+                        ref={videoPreviewRef}
+                        src={localHeroVideo.videoUrl}
+                        preload="auto"
+                        muted
+                        playsInline
+                        className="w-full h-full"
+                        style={{
+                          objectFit: localHeroVideo.objectFit || "cover",
+                          objectPosition: `${localHeroVideo.positionX ?? 50}% ${localHeroVideo.positionY ?? 50}%`,
+                          transform: `scale(${localHeroVideo.scale || 1.0})`,
+                        }}
+                      />
+                      <div className="absolute top-3 left-3 bg-black/70 backdrop-blur-md px-3 py-1 rounded-full text-[10px] font-mono font-bold text-amber-300 border border-amber-400/40">
+                        Scrub Position: {previewScrubber}%
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="flex justify-between text-xs font-bold text-slate-700 mb-1">
+                        <span>🧪 ทดลองเลื่อนดูเฟรมวิดีโอ (Scroll Test 0% → 100%)</span>
+                        <span>{previewScrubber}%</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        value={previewScrubber}
+                        onChange={(e) => {
+                          const val = Number(e.target.value);
+                          setPreviewScrubber(val);
+                          if (videoPreviewRef.current && videoPreviewRef.current.duration) {
+                            videoPreviewRef.current.currentTime =
+                              (val / 100) * videoPreviewRef.current.duration;
+                          }
+                        }}
+                        className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2 border-t border-slate-200">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">
+                          โหมดปรับขนาด (Object Fit)
+                        </label>
+                        <select
+                          value={localHeroVideo.objectFit || "cover"}
+                          onChange={(e) =>
+                            setLocalHeroVideo({
+                              ...localHeroVideo,
+                              objectFit: e.target.value as any,
+                            })
+                          }
+                          className="w-full px-3 py-2 text-xs font-bold rounded-xl border border-slate-300 bg-white"
+                        >
+                          <option value="cover">Cover (ขยายเต็มหน้าจอ - แนะนำ)</option>
+                          <option value="contain">Contain (แสดงครบทุกสัดส่วน)</option>
+                          <option value="fill">Fill (ยืดเต็มกรอบ)</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <div className="flex justify-between text-xs font-bold text-slate-700 mb-1">
+                          <span>อัตราการซูมภาพ (Scale Zoom)</span>
+                          <span>{((localHeroVideo.scale || 1.0) * 100).toFixed(0)}%</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="1.0"
+                          max="2.0"
+                          step="0.05"
+                          value={localHeroVideo.scale || 1.0}
+                          onChange={(e) =>
+                            setLocalHeroVideo({
+                              ...localHeroVideo,
+                              scale: parseFloat(e.target.value),
+                            })
+                          }
+                          className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                        />
+                      </div>
+
+                      <div>
+                        <div className="flex justify-between text-xs font-bold text-slate-700 mb-1">
+                          <span>ตำแหน่งแนวตั้ง (Vertical Position Y)</span>
+                          <span>{localHeroVideo.positionY ?? 50}%</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="0"
+                          max="100"
+                          value={localHeroVideo.positionY ?? 50}
+                          onChange={(e) =>
+                            setLocalHeroVideo({
+                              ...localHeroVideo,
+                              positionY: parseInt(e.target.value),
+                            })
+                          }
+                          className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-8 border-2 border-dashed border-slate-300 rounded-2xl text-center space-y-2 bg-slate-50">
+                    <span className="text-4xl">🎬</span>
+                    <p className="text-xs font-bold text-slate-700">
+                      ยังไม่ได้อัปโหลดวิดีโอคัสตอม
+                    </p>
+                    <p className="text-[11px] text-slate-500">
+                      ปัจจุบันหน้าเว็บกำลังแสดงผลด้วยอนิเมชันภาพ 3D ดั้งเดิม (192 เฟรม)
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* TAB 3: Categories & Colors Manager */}
             {activeTab === "categories" && (
               <div className="space-y-6">
                 <div className="flex justify-between items-center bg-blue-50 p-4 rounded-2xl border border-blue-200">
                   <span className="text-xs font-bold text-blue-900">
-                    กำหนดป้ายหมวดหมู่ & เลือกสีประจำหมวด (โฮเวอร์ข้อความในการ์ดและ Marquee จะเปลี่ยนสีตามนี้)
+                    กำหนดป้ายหมวดหมู่ & เลือกสีประจำหมวด
                   </span>
                   <button
                     onClick={() => {
@@ -419,7 +666,6 @@ export default function AdminSettingsModal({
                         </button>
                       </div>
 
-                      {/* Name */}
                       <div>
                         <label className="block text-[11px] font-bold text-slate-700 mb-1">
                           ชื่อป้ายหมวดหมู่ (Category Name)
@@ -436,7 +682,6 @@ export default function AdminSettingsModal({
                         />
                       </div>
 
-                      {/* Color Picker & Preset Selection */}
                       <div>
                         <label className="block text-[11px] font-bold text-slate-700 mb-1">
                           สีประจำหมวดหมู่ (Hover Accent Color)
@@ -470,7 +715,6 @@ export default function AdminSettingsModal({
                           </span>
                         </div>
 
-                        {/* Preset Quick Buttons */}
                         <div className="flex flex-wrap gap-1.5">
                           {PRESET_COLORS.map((preset) => (
                             <button
