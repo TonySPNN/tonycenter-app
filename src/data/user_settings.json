@@ -75,7 +75,7 @@
     },
     {
       "id": "cat-2",
-      "name": "Automate for work",
+      "name": "3D PROTOTYPING",
       "color": "#d97706"
     },
     {
@@ -103,5 +103,12 @@
       "name": "Automate for work",
       "color": "#4f46e5"
     }
-  ]
+  ],
+  "heroVideo": {
+    "videoUrl": "",
+    "objectFit": "cover",
+    "scale": 1,
+    "positionX": 50,
+    "positionY": 50
+  }
 }
